@@ -1,0 +1,8 @@
+{
+	"name": "k-ko/apt-watch-upgradable",
+	"description": "Check for available updates and send an email if so",
+	"require": {
+		"phpmailer/phpmailer": "^5.2",
+		"vlucas/phpdotenv": "^5"
+	}
+}

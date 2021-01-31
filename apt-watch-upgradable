@@ -1,0 +1,84 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__ . '/vendor/autoload.php';
+
+$options = getopt('adh');
+
+if (array_key_exists('h', $options)) {
+    echo PHP_EOL;
+    echo 'Usage: ', $argv[0], ' [options]', PHP_EOL, PHP_EOL;
+    echo 'Options:', PHP_EOL;
+    echo "\t-a\tSend always an email, also if no upgrade is avaliable", PHP_EOL;
+    echo "\t-d\tDownload packages but NOT install", PHP_EOL;
+    echo "\t-h\tThis help", PHP_EOL;
+    exit;
+}
+
+// ini_set('display_errors', 1);
+// error_reporting(-1);
+
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
+
+// Execute the apt-get update and the apt-get upgrade (simulation)
+exec('apt update >/dev/null 2>&1 && apt list --upgradable 2>/dev/null', $output, $rc);
+// exec('apt list --upgradable 2>/dev/null', $output, $rc);
+
+array_shift($output);
+
+$output = array_map(
+    function($l) {
+        return preg_replace('~^\S+~', '<strong><tt>$0</tt></strong> - ', $l);
+    },
+    $output
+);
+
+if (!array_key_exists('a', $options) && empty($output)) {
+    exit(0);
+}
+
+// Send the email
+$mail = new PHPMailer;
+
+$mail->CharSet = 'UTF-8';
+
+$mail->isSMTP();
+
+$mail->SMTPOptions = [
+    'ssl' => [
+        'verify_peer' => false,
+        'verify_peer_name' => false,
+        'allow_self_signed' => true
+    ]
+];
+
+$mail->Host = $_ENV['MAIL_HOST'];
+$mail->Port = $_ENV['MAIL_PORT'];
+
+$mail->SMTPAuth = $_ENV['SMTP_AUTH'];
+$mail->Username = $_ENV['MAIL_USERNAME'];
+$mail->Password = $_ENV['MAIL_PASSWORD'];
+$mail->SMTPSecure = $_ENV['MAIL_ENCRYPTION'];
+
+$mail->setFrom($_ENV['MAIL_FROM_ADDRESS'], $_ENV['MAIL_FROM_NAME']);
+$mail->addAddress($_ENV['MAIL_TO_ADDRESS'], $_ENV['MAIL_TO_NAME']);
+
+$count = count($output);
+
+if ($count) {
+    $mail->Subject = '[' . $_ENV['SERVER_NAME'] . '] ' . $count . ' Updates available';
+    $mail->Body = '<h3>Available updates</h3>' . implode('<br/>', $output);
+    $mail->isHtml(true);
+} else {
+    $mail->Subject = '[' . $_ENV['SERVER_NAME'] . '] No updates available';
+    $mail->Body = 'No updates available.';
+}
+
+if (!$mail->send()) {
+    echo date("Y-m-d H:i:s"), ' Email could not be sent: ', $mail->ErrorInfo, PHP_EOL;
+    exit(127);
+}
+
+// Download packages
+$count && array_key_exists('d', $options) && exec('apt upgrade -d -y >/dev/null 2>&1');
