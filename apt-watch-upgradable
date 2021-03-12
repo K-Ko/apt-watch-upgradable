@@ -11,6 +11,7 @@ if (array_key_exists('h', $options)) {
     echo 'Options:', PHP_EOL;
     echo "\t-a\tSend always an email, also if no upgrade is avaliable", PHP_EOL;
     echo "\t-d\tDownload packages but NOT install", PHP_EOL;
+    echo "\t-m\tAdd an entry to motd", PHP_EOL;
     echo "\t-h\tThis help", PHP_EOL;
     exit;
 }
@@ -23,9 +24,19 @@ $dotenv->load();
 
 // Execute the apt-get update and the apt-get upgrade (simulation)
 exec('apt update >/dev/null 2>&1 && apt list --upgradable 2>/dev/null', $output, $rc);
-// exec('apt list --upgradable 2>/dev/null', $output, $rc);
 
 array_shift($output);
+
+if (!array_key_exists('m', $options)) {
+    $count = count($output);
+
+    file_put_contents(
+        '/etc/motd.d/apt-watch-upgradable',
+        sprintf('%d packages upgradable' . PHP_EOL, $count)
+    );
+} else {
+    @unlink('/etc/motd.d/apt-watch-upgradable');
+}
 
 $output = array_map(
     function($l) {
