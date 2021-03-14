@@ -32,7 +32,7 @@ if (!array_key_exists('m', $options)) {
 
     file_put_contents(
         '/etc/motd.d/apt-watch-upgradable',
-        sprintf('%d packages upgradable' . PHP_EOL, $count)
+        sprintf('%d packages upgradable' . PHP_EOL . PHP_EOL, $count)
     );
 } else {
     @unlink('/etc/motd.d/apt-watch-upgradable');
